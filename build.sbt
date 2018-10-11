@@ -21,3 +21,10 @@ libraryDependencies ++= Seq(
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
 libraryDependencies += "org.postgresql" % "postgresql" % "42.2.5"
 
+libraryDependencies ++= Seq(
+  "io.chrisdavenport" %% "log4cats-slf4j"   % "0.2.0-M1",  // Direct Slf4j Support - Recommended
+  //"io.chrisdavenport" %% "log4cats-log4s"   % "<version>",  // For Log4s Support
+  //"io.chrisdavenport" %% "log4cats-scribe"  % "<version>",   // For Scribe Support
+  //"io.chrisdavenport" %% "log4scalaz-log4s" % "<version>"   // Scalaz Log4s Support
+)
+
