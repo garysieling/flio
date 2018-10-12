@@ -15,6 +15,12 @@ import cats.effect.Clock
 import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 import scala.sys.process.Process
 
+import cats.effect.Sync
+import io.chrisdavenport.log4cats.Logger
+import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+
+import io.circe._, io.circe.parser._
+
 object Hyperparameters {
 
   implicit val timer = IO.timer(ExecutionContext.global)
@@ -138,26 +144,30 @@ object Hyperparameters {
     implicit val Main = ExecutionContext.global
     implicit val cs = IO.contextShift(ExecutionContext.global)
 
-    val program = 
-      NonEmptyList(
-        IO({ println("Starting") }),
-        steps.map(
-        step => 
-          for (
-            runId <- FUUID.randomFUUID[IO];
-            script <- IO.race(
-              step
-                .map( _(runId.toString) )
-                .reduce(
-                  (a, b) => a *> b
-                ),
-              IO.sleep(600 seconds) 
-            )(contextShift)
-          ) yield script
-      ).toList).parSequence *>
-       IO({
-         println("success")
-       })
+    implicit def unsafeLogger[F[_]: Sync] = Slf4jLogger.unsafeCreate[F]
+
+    val program =
+      for (
+        logger <- Slf4jLogger.create[IO];
+        tuning <- NonEmptyList(
+          logger.info("Starting hyperparameter tuning"),
+          steps.map(
+            step => 
+              for (
+                runId <- FUUID.randomFUUID[IO];
+                script <- IO.race(
+                  step
+                    .map( _(runId.toString) )
+                    .reduce(
+                      (a, b) => a *> b
+                    ),
+                  IO.sleep(600 seconds) 
+                )(contextShift)
+              ) yield script
+          ).toList).parSequence *>
+           logger.info("parSequence complete");
+        completion <- logger.debug("done")
+      ) yield completion
 
     program.unsafeRunSync()
   }

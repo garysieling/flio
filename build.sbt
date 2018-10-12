@@ -28,3 +28,4 @@ libraryDependencies ++= Seq(
   //"io.chrisdavenport" %% "log4scalaz-log4s" % "<version>"   // Scalaz Log4s Support
 )
 
+libraryDependencies += "io.circe" %% "circe-parser" % "0.10.0"
