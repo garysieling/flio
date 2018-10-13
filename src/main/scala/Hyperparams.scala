@@ -1,5 +1,6 @@
 import io.chrisdavenport.fuuid._
 import java.util.concurrent.atomic.AtomicBoolean
+import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
 
 import util.Random.nextInt
 import util.Random.nextDouble
@@ -19,7 +20,7 @@ import cats.effect.Sync
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 
-import io.circe._, io.circe.parser._
+import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 
 object Hyperparameters {
 
@@ -104,7 +105,9 @@ object Hyperparameters {
     val DATA_PATH = "/projects/wikipedia-categorization/"
     val MODEL_PATH = "/projects/wikipedia-categorization/models/"
      
-    val steps = Stream.continually(1).zipWithIndex.map(
+    def getSteps(logger: SelfAwareStructuredLogger[IO]): 
+      Stream[List[(String) => IO[_]]] = { 
+      Stream.continually(1).zipWithIndex.map(
       (idx: (Int, Int)) => Experiment(
         10, //(1 + nextInt(8) ) * 50,
         1, //5 + nextInt(100),
@@ -117,6 +120,17 @@ object Hyperparameters {
     ).take(1).map(
       (e) => List(
            // TODO save the experiment parameters off to json
+           (runId: String) => IO( { println(runId + ": " + e.asJson.noSpaces) } ),
+           (runId: String) => IO( { 
+             import java.io._
+
+             val canonicalFilename = MODEL_PATH + e.index + ".json"
+
+             val file = new File(canonicalFilename)
+             val bw = new BufferedWriter(new FileWriter(file))
+             bw.write(e.asJson.noSpaces)
+             bw.close()
+           } ),
            cmd(
              s"${FASTTEXT_PATH}/fasttext supervised " + 
              s"-input ${DATA_PATH}train.txt -output ${MODEL_PATH}model${e.index} " +
@@ -132,6 +146,7 @@ object Hyperparameters {
            cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.index}.bin ${DATA_PATH}test.txt 5", Some("${DATA_PATH}perf${e.index}_5.txt"))(_)
         )
     ).force
+    }
 
     // TODO one of the logging libraries (log4cats, console4cats)
     // TODO cats retry
@@ -140,7 +155,6 @@ object Hyperparameters {
     import cats.instances.list._
     import cats.instances.option._
 
-    implicit val timer = IO.timer(ExecutionContext.global)
     implicit val Main = ExecutionContext.global
     implicit val cs = IO.contextShift(ExecutionContext.global)
 
@@ -151,7 +165,7 @@ object Hyperparameters {
         logger <- Slf4jLogger.create[IO];
         tuning <- NonEmptyList(
           logger.info("Starting hyperparameter tuning"),
-          steps.map(
+          getSteps(logger).map(
             step => 
               for (
                 runId <- FUUID.randomFUUID[IO];
