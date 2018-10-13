@@ -117,14 +117,14 @@ object Hyperparameters {
         nextInt(10),
         idx._2
       )
-    ).take(1).map(
+    ).take(4).map(
       (e) => List(
            // TODO save the experiment parameters off to json
            (runId: String) => IO( { println(runId + ": " + e.asJson.noSpaces) } ),
            (runId: String) => IO( { 
              import java.io._
 
-             val canonicalFilename = MODEL_PATH + e.index + ".json"
+             val canonicalFilename = MODEL_PATH + e.hashCode() + ".json"
 
              val file = new File(canonicalFilename)
              val bw = new BufferedWriter(new FileWriter(file))
@@ -133,7 +133,7 @@ object Hyperparameters {
            } ),
            cmd(
              s"${FASTTEXT_PATH}/fasttext supervised " + 
-             s"-input ${DATA_PATH}train.txt -output ${MODEL_PATH}model${e.index} " +
+             s"-input ${DATA_PATH}train.txt -output ${MODEL_PATH}model${e.hashCode()} " +
              s"-dim ${e.dimensions} " +
              s"-epoch ${e.epochs} " +
              s"-lr ${e.lr} " + 
@@ -142,8 +142,8 @@ object Hyperparameters {
              s"-neg ${e.neg} " +
              s"-minCount ${e.minCount}"
            )(_),
-           cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.index}.bin ${DATA_PATH}test.txt 1", Some("${DATA_PATH}perf${e.index}_1.txt"))(_),
-           cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.index}.bin ${DATA_PATH}test.txt 5", Some("${DATA_PATH}perf${e.index}_5.txt"))(_)
+           cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.hashCode()}.bin ${DATA_PATH}test.txt 1", Some("${DATA_PATH}perf${e.index}_1.txt"))(_),
+           cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.hashCode()}.bin ${DATA_PATH}test.txt 5", Some("${DATA_PATH}perf${e.index}_5.txt"))(_)
         )
     ).force
     }
@@ -175,7 +175,7 @@ object Hyperparameters {
                     .reduce(
                       (a, b) => a *> b
                     ),
-                  IO.sleep(600 seconds) 
+                  IO.sleep(2400 seconds) 
                 )(contextShift)
               ) yield script
           ).toList).parSequence *>
