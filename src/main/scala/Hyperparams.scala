@@ -91,7 +91,7 @@ object Hyperparameters {
   })
 
   implicit val executionContext: ExecutionContextExecutorService =
-    ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(1))
+    ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(4))
 
   implicit lazy val contextShift: ContextShift[IO] =
     IO.contextShift(executionContext) // ceremony 1
@@ -120,8 +120,8 @@ object Hyperparameters {
       Stream[List[(String) => IO[_]]] = { 
       Stream.continually(1).zipWithIndex.map(
       (idx: (Int, Int)) => Experiment(
-        10, //(1 + nextInt(8) ) * 50,
-        1, //5 + nextInt(100),
+        (1 + nextInt(8) ) * 50,
+        5 + nextInt(100),
         nextInt(20),
         nextDouble(),
         List("ns", "hs", "softmax")(nextInt(3)),
@@ -153,8 +153,8 @@ object Hyperparameters {
              s"-neg ${e.neg} " +
              s"-minCount ${e.minCount}"
            )(_),
-           cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.hashCode()}.bin ${DATA_PATH}test.txt 1", Some("${MODEL_PATH}perf${e.hashCode()}_1.txt"))(_),
-           cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.hashCode()}.bin ${DATA_PATH}test.txt 5", Some("${MODEL_PATH}perf${e.hashCode()}_5.txt"))(_)
+           cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.hashCode()}.bin ${DATA_PATH}test.txt 1", Some(s"${MODEL_PATH}perf_${e.hashCode()}_1.txt"))(_),
+           cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.hashCode()}.bin ${DATA_PATH}test.txt 5", Some(s"${MODEL_PATH}perf_${e.hashCode()}_5.txt"))(_)
         )
     ).force
     }
