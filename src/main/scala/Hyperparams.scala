@@ -1,6 +1,8 @@
 import io.chrisdavenport.fuuid._
 import java.util.concurrent.atomic.AtomicBoolean
 import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
+import scala.concurrent._
+import java.util.concurrent.Executors
 
 import util.Random.nextInt
 import util.Random.nextDouble
@@ -24,7 +26,7 @@ import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 
 object Hyperparameters {
 
-  implicit val timer = IO.timer(ExecutionContext.global)
+  //implicit val timer = IO.timer(ExecutionContext.global)
 
   val info = (msg: String) => println("OUT " + msg)
   val err = (msg: String) => println("ERR " + msg)
@@ -88,6 +90,15 @@ object Hyperparameters {
 
   })
 
+  implicit val executionContext: ExecutionContextExecutorService =
+    ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(1))
+
+  implicit lazy val contextShift: ContextShift[IO] =
+    IO.contextShift(executionContext) // ceremony 1
+
+  implicit lazy val timer: Timer[IO] =
+    IO.timer(executionContext) // ceremony 2
+
   def main(args: Array[String]): Unit = {
     val contextShift = IO.contextShift(global)
 
@@ -117,7 +128,7 @@ object Hyperparameters {
         nextInt(10),
         idx._2
       )
-    ).take(4).map(
+    ).take(1000).map(
       (e) => List(
            // TODO save the experiment parameters off to json
            (runId: String) => IO( { println(runId + ": " + e.asJson.noSpaces) } ),
@@ -142,8 +153,8 @@ object Hyperparameters {
              s"-neg ${e.neg} " +
              s"-minCount ${e.minCount}"
            )(_),
-           cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.hashCode()}.bin ${DATA_PATH}test.txt 1", Some("${DATA_PATH}perf${e.index}_1.txt"))(_),
-           cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.hashCode()}.bin ${DATA_PATH}test.txt 5", Some("${DATA_PATH}perf${e.index}_5.txt"))(_)
+           cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.hashCode()}.bin ${DATA_PATH}test.txt 1", Some("${MODEL_PATH}perf${e.hashCode()}_1.txt"))(_),
+           cmd(s"${FASTTEXT_PATH}/fasttext test ${MODEL_PATH}model${e.hashCode()}.bin ${DATA_PATH}test.txt 5", Some("${MODEL_PATH}perf${e.hashCode()}_5.txt"))(_)
         )
     ).force
     }
@@ -175,7 +186,7 @@ object Hyperparameters {
                     .reduce(
                       (a, b) => a *> b
                     ),
-                  IO.sleep(2400 seconds) 
+                  IO.sleep(3 hours) 
                 )(contextShift)
               ) yield script
           ).toList).parSequence *>
